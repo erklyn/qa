@@ -1,4 +1,4 @@
-use crate::db::DB_CONNECTION;
+use crate::{db::DB_CONNECTION, lectures};
 use axum::{extract::Path, http::StatusCode, response::IntoResponse, Json};
 use libsql::params;
 use serde::{Deserialize, Serialize};
@@ -19,7 +19,12 @@ pub struct Question {
 pub async fn create_question(
     Path(path): Path<String>,
     Json(payload): Json<CreateQuestion>,
-) -> impl IntoResponse {
+) -> Result<impl IntoResponse, String> {
+    let lecture = lectures::get_lecture(path.clone()).await?;
+    if !lecture.active {
+        return Ok(StatusCode::LOCKED);
+    };
+
     let conn = DB_CONNECTION.get().unwrap().lock().await;
     let question = Question {
         name: payload.name,
@@ -36,9 +41,10 @@ pub async fn create_question(
                 question.lecture.clone()
             ],
         )
-        .await;
+        .await
+        .map_err(|err| err.to_string())?;
 
-    (StatusCode::CREATED, Json(question))
+    return Ok(StatusCode::CREATED);
 }
 
 pub async fn get_questions(Path(lecture): Path<String>) -> Result<impl IntoResponse, String> {

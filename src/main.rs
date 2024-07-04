@@ -2,7 +2,7 @@ use axum::{
     routing::{get, post},
     Router,
 };
-use qa::{db, questions};
+use qa::{db, lectures, questions};
 
 #[tokio::main]
 async fn main() {
@@ -14,7 +14,14 @@ async fn main() {
 
     // build our application with a single route
     let app = Router::new()
-        .route("/", get(|| async { "Hello, World!" }))
+        .route(
+            "/lecture/:lecture",
+            post(|path| lectures::create_lecture(path)),
+        )
+        .route(
+            "/lecture/disable/:lecture",
+            post(|path| lectures::disable_lecture(path)),
+        )
         .route(
             "/:lecture",
             get(|lecture| questions::get_questions(lecture)),

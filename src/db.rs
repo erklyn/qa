@@ -26,6 +26,12 @@ impl Db {
                 (),
             )
             .await;
+        let _ = conn
+            .execute(
+                "CREATE TABLE IF NOT EXISTS lectures(name varchar, active boolean)",
+                (),
+            )
+            .await;
 
         let connection = db.connect().map_err(|err| err.to_string())?;
         DB_CONNECTION
