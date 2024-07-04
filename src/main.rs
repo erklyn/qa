@@ -1,15 +1,28 @@
-use axum::{routing::get, Router};
-use qa::db;
+use axum::{
+    routing::{get, post},
+    Router,
+};
+use qa::{db, questions};
 
 #[tokio::main]
 async fn main() {
-    let _db_conn = match db::init_db(None).await {
-        Ok(conn) => conn,
-        Err(err) => panic!("{}", err),
+    tracing_subscriber::fmt::init();
+    let _ = match db::Db::connect(None).await {
+        Err(err) => panic!("Cannot create db -> {}", err),
+        _ => {}
     };
 
     // build our application with a single route
-    let app = Router::new().route("/", get(|| async { "Hello, World!" }));
+    let app = Router::new()
+        .route("/", get(|| async { "Hello, World!" }))
+        .route(
+            "/:lecture",
+            get(|lecture| questions::get_questions(lecture)),
+        )
+        .route(
+            "/:lecture",
+            post(|(path, payload)| questions::create_question(path, payload)),
+        );
 
     // run our app with hyper, listening globally on port 3000
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
