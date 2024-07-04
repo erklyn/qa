@@ -37,6 +37,33 @@ pub async fn get_lecture(lec_name: String) -> Result<Lecture, String> {
     Ok(lecture)
 }
 
+pub async fn get_single_lecture(Path(lec_name): Path<String>) -> Result<impl IntoResponse, String> {
+    let conn = DB_CONNECTION.get().unwrap().lock().await;
+
+    let mut stmt = conn
+        .prepare("SELECT * FROM lectures WHERE name = ?1")
+        .await
+        .unwrap();
+
+    let mut rows = stmt
+        .query([lec_name])
+        .await
+        .map_err(|err| err.to_string())?;
+
+    let row = rows
+        .next()
+        .await
+        .map_err(|err| err.to_string())?
+        .expect("There to be a value");
+
+    let lecture = Lecture {
+        name: row.get(0).map_err(|err| err.to_string())?,
+        active: row.get(1).map_err(|err| err.to_string())?,
+    };
+
+    Ok((StatusCode::OK, Json(lecture)))
+}
+
 pub async fn disable_lecture(Path(lec_name): Path<String>) -> Result<impl IntoResponse, String> {
     let conn = DB_CONNECTION.get().unwrap().lock().await;
 
@@ -70,4 +97,26 @@ pub async fn create_lecture(Path(lec_name): Path<String>) -> Result<impl IntoRes
             active: true,
         }),
     ))
+}
+
+pub async fn get_lectures() -> Result<impl IntoResponse, String> {
+    let conn = DB_CONNECTION.get().unwrap().lock().await;
+
+    let mut results = conn
+        .query("SELECT * FROM lectures", ())
+        .await
+        .map_err(|err| err.to_string())?;
+
+    let mut lectures: Vec<Lecture> = Vec::new();
+
+    while let Some(row) = results.next().await.map_err(|err| err.to_string())? {
+        let lecture = Lecture {
+            name: row.get(0).map_err(|err| err.to_string())?,
+            active: row.get(1).map_err(|err| err.to_string())?,
+        };
+
+        lectures.push(lecture);
+    }
+
+    Ok((StatusCode::OK, Json(lectures)))
 }
